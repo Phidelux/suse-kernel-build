@@ -12,6 +12,7 @@ LINUX_LAST_CONFIG="/boot/config-$(uname -r)"
 LINUX_VERSION_SUFFIX="phidelux"
 LINUX_BUILD_DEPENDENCIES="git ncurses-devel bc openssl libopenssl-devel dwarves rpm-build libelf-devel flex bison"
 LINUX_BUILD_DIR="build"
+LINUX_SOURCE_DIR="/usr/src/linux-${LINUX_VERSION}"
 LINUX_RPM_DIR="${HOME}/rpmbuild/RPMS/${LINUX_ARCH}"
 
 error() {
@@ -42,8 +43,7 @@ usage() {
 	exit "${rc}"
 }
 
-yesno()
-{
+yesno() {
 	if [ ! "$*" ]; then
 		error "Missing question"
 	fi
@@ -88,8 +88,8 @@ else
 	info "Kernel tarball ${LINUX_PACKAGE} already exists - continue ..."
 fi
 
-if ! [ -d "/usr/src/linux-${LINUX_VERSION}" ]; then
-	info "Extracting kernel sources to /usr/src/linux-${LINUX_VERSION} ..."
+if ! [ -d "${LINUX_SOURCE_DIR}" ]; then
+	info "Extracting kernel sources to ${LINUX_SOURCE_DIR} ..."
 	sudo tar xzf "${LINUX_PACKAGE}" -C /usr/src
 else
 	info "Kernel sources for ${LINUX_VERSION} already extracted - continue ..."
@@ -100,7 +100,7 @@ if [ -e "/usr/src/linux" ]; then
 	sudo rm /usr/src/linux
 fi
 
-sudo ln -s "/usr/src/linux-${LINUX_VERSION}" /usr/src/linux
+sudo ln -s "${LINUX_SOURCE_DIR}" /usr/src/linux
 
 info "Creating build directory ..."
 if ! [ -d "${LINUX_BUILD_DIR}" ]; then
@@ -110,7 +110,7 @@ fi
 cd "${LINUX_BUILD_DIR}"
 
 info "Cleanup existing build artifacts ..."
-make mrproper
+make -C /usr/src/linux mrproper
 
 # HINT: You can also copy the running kernel configuration from /boot:
 #       cp /boot/config-`uname -r`* .config
@@ -152,7 +152,7 @@ fi
 info "Building the new linux kernel ..."
 command time -f "\t\n\n Elapsed Time : %E \n\n" make -j"$(nproc)" V=1 O="$PWD" LOCALVERSION=-"${LINUX_VERSION_SUFFIX}" binrpm-pkg
 
-KERNEL_RPM="$(find "${LINUX_RPM_DIR}" -name "kernel-${LINUX_VERSION/-/_}_1_default_${LINUX_VERSION_SUFFIX}-1.${LINUX_ARCH}.rpm" -print | head -n1)"
+KERNEL_RPM="$(find "${LINUX_RPM_DIR}" -name "kernel-$(printf "%s" "${LINUX_VERSION}" | tr '-' '_')_1_default_${LINUX_VERSION_SUFFIX}-1.${LINUX_ARCH}.rpm" -print | head -n1)"
 
 # HINT: You can then install the new kernel and kernel modules using:
 #

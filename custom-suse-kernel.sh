@@ -190,6 +190,12 @@ if [ -z "${LINUX_INSTALL_ONLY}" ]; then
 		info "Kernel sources for ${LINUX_VERSION} already extracted - continue ..."
 	fi
 
+	# HINT: Older versions of depmod require the version string to start with three
+	#       digits, this would include a symlink to fix this. However, OpenSuse uses
+	#       a pretty new kernel.
+	info "Disable the depmod hack ..."
+	sudo sed -i '/^depmod_hack_needed/ s/true/false/' "${LINUX_SOURCE_DIR}/scripts/depmod.sh"
+
 	info "Create a symlink to the kernel sources ..."
 	if [ -e "/usr/src/linux" ]; then
 		sudo rm /usr/src/linux

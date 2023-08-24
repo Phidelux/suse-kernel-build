@@ -224,6 +224,7 @@ if [ -z "${LINUX_INSTALL_ONLY}" ]; then
 
 		info "Stripping unnecessary kernel configurations ..."
 		/usr/src/linux/scripts/config --file ".config" --disable MODULE_SIG_KEY
+		/usr/src/linux/scripts/config --file ".config" --disable SUSE_KERNEL_RELEASED
 
 		if [ -n "${LINUX_DEBUG_KERNEL}" ]; then
 			info "Ensure debugging is disabled ..."

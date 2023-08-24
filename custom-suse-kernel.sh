@@ -223,16 +223,18 @@ if [ -z "${LINUX_INSTALL_ONLY}" ]; then
 		cp "${LINUX_LAST_CONFIG}" ".config"
 
 		info "Stripping unnecessary kernel configurations ..."
-		/usr/src/linux/scripts/config --file ".config" --disable CONFIG_MODULE_SIG_KEY
+		/usr/src/linux/scripts/config --file ".config" --disable MODULE_SIG_KEY
 
 		if [ -n "${LINUX_DEBUG_KERNEL}" ]; then
 			info "Ensure debugging is disabled ..."
 			/usr/src/linux/scripts/config --file ".config" --enable DEBUG_KERNEL
 			/usr/src/linux/scripts/config --file ".config" --enable DEBUG_INFO
+			/usr/src/linux/scripts/config --file ".config" --enable EXPERT
 		else
 			info "Ensure debugging is disabled ..."
 			/usr/src/linux/scripts/config --file ".config" --disable DEBUG_KERNEL
 			/usr/src/linux/scripts/config --file ".config" --disable DEBUG_INFO
+			/usr/src/linux/scripts/config --file ".config" --disable EXPERT
 		fi
 
 		info "Enable kernel early printing ..."

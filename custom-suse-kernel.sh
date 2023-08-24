@@ -25,11 +25,12 @@ Usage:
     Global Options:
     --help, -h              Help.
     --verbose, -v           Display additional information.
-    --config, -c            Use the specified configuration file to build the kernel.
+    --config, -c <config>   Use the specified configuration file to build the kernel.
     --debug-kernel, -d      Build a debug kernel.
     --no-reconfigure, -r    Do not reconfigure the current kernel.
     --keep-artifacts, -k    Keep previous build artifacts (do not run mrproper).
     --build-only, -b        Only build the kernel without installing it.
+    --install-only, -i      Try to install kernel ${LINUX_VERSION} from ${LINUX_RPM_DIR}.
 
     This script will download, unpack build and install the latest linux kernel (${LINUX_VERSION})
     into an OpenSuse system and derivates.

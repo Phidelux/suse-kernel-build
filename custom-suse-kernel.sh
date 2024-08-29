@@ -10,11 +10,13 @@ LINUX_PACKAGE_SERVER="https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/l
 LINUX_PACKAGE="linux-${LINUX_VERSION}.tar.gz"
 LINUX_DEFAULT_CONFIG="/boot/config-$(uname -r)"
 LINUX_LAST_CONFIG="${LINUX_DEFAULT_CONFIG}"
-LINUX_VERSION_SUFFIX="phidelux"
+LINUX_VERSION_SUFFIX="${USER}"
 LINUX_BUILD_DEPENDENCIES="git ncurses-devel bc openssl libopenssl-devel dwarves rpm-build libelf-devel flex bison"
 LINUX_BUILD_DIR="build"
 LINUX_SOURCE_DIR="/usr/src/linux-${LINUX_VERSION}"
-LINUX_RPM_DIR="${HOME}/rpmbuild/RPMS/${LINUX_ARCH}"
+LINUX_RPMBUILD_DIR="${HOME}/rpmbuild/"
+LINUX_RPM_DIR="${LINUX_RPMBUILD_DIR}/RPMS/${LINUX_ARCH}"
+LINUX_RPM_BUILDROOT="${LINUX_RPMBUILD_DIR}/BUILDROOT"
 
 SCRIPT_NAME=$(basename "$0")
 SCRIPT_USAGE=$(cat <<EOF
@@ -197,6 +199,10 @@ if [ -z "${LINUX_INSTALL_ONLY}" ]; then
 	info "Disable the depmod hack ..."
 	sudo sed -i '/^depmod_hack_needed/ s/true/false/' "${LINUX_SOURCE_DIR}/scripts/depmod.sh"
 
+	# HINT: With the usrmerge patches, depmod now accesses $base/usr/lib/modules
+	#       instead of $base/lib/modules. Unfortunately, scripts/depmod.sh in the
+	#       kernel sources cannot cope with that and fails.
+
 	info "Create a symlink to the kernel sources ..."
 	if [ -e "/usr/src/linux" ]; then
 		sudo rm /usr/src/linux
@@ -250,9 +256,12 @@ if [ -z "${LINUX_INSTALL_ONLY}" ]; then
 	info "View configuration changes with scripts/diffconfig .config{.old,}"
 
 	if yesno "Do you like to remove old kernel rpms from ${HOME}/rpmbuild/RPMS/${LINUX_ARCH}/ (default no) ? "; then
-	    info "Removing old kernel rpms from ${HOME}/rpmbuild/RPMS/${LINUX_ARCH}/ ..."
+	    info "Removing old kernel rpms from ${LINUX_RPM_DIR} ..."
 	    find "${LINUX_RPM_DIR}" -name "kernel-*.rpm" -exec rm {} \;
 	fi
+
+	info "Removing old kernel buildroots from ${LINUX_RPM_BUILDROOT} ..."
+	rm -rf "${LINUX_RPM_BUILDROOT}/*"
 
 	notify "Kernel build started"
 
@@ -264,7 +273,7 @@ if [ -z "${LINUX_INSTALL_ONLY}" ]; then
 	#       make -j "$(nproc)" LOCALVERSION=-"$KERNEL_VERSION_SUFFIX" O="${KERNEL_BUILD_DIR}"
 	# FIXME: Fix build with LLVM=1
 	info "Building the new linux kernel ..."
-	command time -f "\t\n\n Elapsed Time : %E \n\n" make -j"$(nproc)" V=1 O="$PWD" LOCALVERSION=-"${LINUX_VERSION_SUFFIX}" binrpm-pkg
+	command time -f "\t\n\n Elapsed Time : %E \n\n" make -j"$(nproc)" V=1 O="$PWD" LOCALVERSION=-"${LINUX_VERSION_SUFFIX}" INSTALL_MOD_STRIP=1 binrpm-pkg
 fi
 
 if [ -z "${LINUX_BUILD_ONLY}" ]; then

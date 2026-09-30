@@ -5,9 +5,7 @@ set -e
 
 LINUX_ARCH="$(uname -m)"
 LINUX_MIRROR="https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git"
-LINUX_VERSION="$(git ls-remote --tags --refs --sort="v:refname" "${LINUX_MIRROR}" | tail -n1 | sed 's/.*\///' | cut -c2-)"
-LINUX_PACKAGE_SERVER="https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/snapshot/"
-LINUX_PACKAGE="linux-${LINUX_VERSION}.tar.gz"
+LINUX_PACKAGE_SERVER="${LINUX_MIRROR}/snapshot/"
 LINUX_DEFAULT_CONFIG="/boot/config-$(uname -r)"
 LINUX_LAST_CONFIG="${LINUX_DEFAULT_CONFIG}"
 LINUX_VERSION_SUFFIX="${USER}"
@@ -32,10 +30,10 @@ Usage:
     --no-reconfigure, -r    Do not reconfigure the current kernel.
     --keep-artifacts, -k    Keep previous build artifacts (do not run mrproper).
     --build-only, -b        Only build the kernel without installing it.
-    --install-only, -i      Try to install kernel ${LINUX_VERSION} from ${LINUX_RPM_DIR}.
+    --install-only, -i      Try to install latest kernel built in ${LINUX_BUILD_DIR}.
 
-    This script will download, unpack build and install the latest linux kernel (${LINUX_VERSION})
-    into an OpenSuse system and derivates.
+    This script will download, unpack build and install the latest stable
+    mainline linux kernel into an openSUSE system and derivates.
 EOF
 )
 
@@ -75,6 +73,15 @@ usage() {
 	echo "${SCRIPT_USAGE}"
 
 	exit "${rc}"
+}
+
+latest_version() {
+	# Only take release tags (no -rc), sorted by version, without the leading "v".
+	git ls-remote --tags --refs "${LINUX_MIRROR}" 'v*' \
+		| sed 's#.*refs/tags/v##' \
+		| grep -v -- '-rc' \
+		| sort -V \
+		| tail -n1
 }
 
 absolute_path() {
@@ -179,6 +186,15 @@ for pkg in ${LINUX_BUILD_DEPENDENCIES}; do
 done
 
 if [ -z "${LINUX_INSTALL_ONLY}" ]; then
+	LINUX_VERSION="$(latest_version)"
+	if [ -z "${LINUX_VERSION}" ]; then
+		error "Could not determine the latest kernel version from ${LINUX_MIRROR}."
+		exit 1
+	fi
+
+	LINUX_PACKAGE="linux-${LINUX_VERSION}.tar.gz"
+	LINUX_SOURCE_DIR="/usr/src/linux-${LINUX_VERSION}"
+
 	if ! [ -f "${LINUX_PACKAGE}" ]; then
 		info "Downloading latest linux kernel ${LINUX_VERSION} ..."
 		wget "${LINUX_PACKAGE_SERVER}${LINUX_PACKAGE}"

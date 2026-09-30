@@ -8,10 +8,9 @@ LINUX_MIRROR="https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git
 LINUX_PACKAGE_SERVER="${LINUX_MIRROR}/snapshot/"
 LINUX_DEFAULT_CONFIG="/boot/config-$(uname -r)"
 LINUX_LAST_CONFIG="${LINUX_DEFAULT_CONFIG}"
-LINUX_VERSION_SUFFIX="${USER}"
+LINUX_VERSION_SUFFIX="${USER:-custom}"
 LINUX_BUILD_DEPENDENCIES="git gcc make perl wget tar time zstd dracut ncurses-devel bc openssl libopenssl-devel dwarves rpm-build libelf-devel flex bison"
 LINUX_BUILD_DIR="$(pwd)/build"
-LINUX_SOURCE_DIR="/usr/src/linux-${LINUX_VERSION}"
 LINUX_RPMBUILD_DIR="${LINUX_BUILD_DIR}/rpmbuild/"
 LINUX_RPM_DIR="${LINUX_RPMBUILD_DIR}/RPMS/${LINUX_ARCH}"
 LINUX_RPM_BUILDROOT="${LINUX_RPMBUILD_DIR}/BUILDROOT"
@@ -28,11 +27,11 @@ Usage:
     --config, -c <config>   Use the specified configuration file to build the kernel.
     --debug-kernel, -d      Build a debug kernel.
     --no-reconfigure, -r    Do not reconfigure the current kernel.
-    --keep-artifacts, -k    Keep previous build artifacts (do not run mrproper).
+    --keep-artifacts, -k    Keep previous build artifacts (do not run make clean).
     --build-only, -b        Only build the kernel without installing it.
-    --install-only, -i      Try to install latest kernel built in ${LINUX_BUILD_DIR}.
+    --install-only, -i      Install the last kernel built in ${LINUX_BUILD_DIR}.
 
-    This script will download, unpack build and install the latest stable
+    This script will download, unpack, build and install the latest stable
     mainline linux kernel into an openSUSE system and derivates.
 EOF
 )
@@ -102,16 +101,14 @@ yesno() {
 		error "Missing question"
 	fi
 
+	OK=""
 	while [ -z "${OK}" ]; do
 		printf "%s" "$*" >&2
 		read -r ANS
 		if [ -z "${ANS}" ]; then
 			ANS="n"
 		else
-			ANS=$(tr '[:upper:]' '[:lower:]' << EOF
-${ANS}
-EOF
-			)
+			ANS=$(printf "%s" "${ANS}" | tr '[:upper:]' '[:lower:]')
 		fi
 
 		if [ "${ANS}" = "y" ] || [ "${ANS}" = "yes" ] || [ "${ANS}" = "n" ] || [ "${ANS}" = "no" ]; then
@@ -137,6 +134,7 @@ while :; do
 		-c|--config)
 			if has_value "${2}"; then
 				LINUX_LAST_CONFIG=$(absolute_path "${2}")
+				LINUX_CUSTOM_CONFIG=1
 				if ! [ -f "${LINUX_LAST_CONFIG}" ]; then
 					usage 1 "${LINUX_LAST_CONFIG} is not a file or does not exist."
 				fi
@@ -172,11 +170,11 @@ while :; do
 	shift
 done
 
-if [ -n "${LINUX_NO_RECONFIGURE}" ] && { [ "${LINUX_LAST_CONFIG}" != "${LINUX_DEFAULT_CONFIG}" ] || [ -n "${LINUX_DEBUG_KERNEL}" ]; }; then
+if [ -n "${LINUX_NO_RECONFIGURE}" ] && { [ -n "${LINUX_CUSTOM_CONFIG}" ] || [ -n "${LINUX_DEBUG_KERNEL}" ]; }; then
 	usage 1 "You cannot use -d or -c without reconfiguring the kernel."
 fi
 
-if [ -n "${LINUX_INSTALL_ONLY}" ] && { [ "${LINUX_LAST_CONFIG}" != "${LINUX_DEFAULT_CONFIG}" ] || [ -n "${LINUX_DEBUG_KERNEL}" ] || [ -n "${LINUX_BUILD_ONLY}" ]; }; then
+if [ -n "${LINUX_INSTALL_ONLY}" ] && { [ -n "${LINUX_CUSTOM_CONFIG}" ] || [ -n "${LINUX_DEBUG_KERNEL}" ] || [ -n "${LINUX_BUILD_ONLY}" ]; }; then
 	usage 1 "You cannot use -d, -b or -c without rebuilding the kernel."
 fi
 
@@ -220,7 +218,7 @@ if [ -z "${LINUX_INSTALL_ONLY}" ]; then
 
 	# HINT: Older versions of depmod require the version string to start with three
 	#       digits, this would include a symlink to fix this. Newer kernels
-    #       no longer contain this hack, so only patch it if it is present.
+	#       no longer contain this hack, so only patch it if it is present.
 	if [ -f "${LINUX_SOURCE_DIR}/scripts/depmod.sh" ] && grep -q '^depmod_hack_needed' "${LINUX_SOURCE_DIR}/scripts/depmod.sh"; then
 		info "Disable the depmod hack ..."
 		sudo sed -i '/^depmod_hack_needed/ s/true/false/' "${LINUX_SOURCE_DIR}/scripts/depmod.sh"
@@ -239,8 +237,6 @@ if [ -z "${LINUX_INSTALL_ONLY}" ]; then
 	fi
 
 	if [ -z "${LINUX_NO_RECONFIGURE}" ]; then
-		# HINT: You can also copy the running kernel configuration from /boot:
-		#       cp /boot/config-`uname -r`* .config
 		if [ -f "${LINUX_LAST_CONFIG}" ]; then
 			info "Copy ${LINUX_LAST_CONFIG} to build directory ..."
 			cp "${LINUX_LAST_CONFIG}" ".config"
@@ -284,7 +280,7 @@ if [ -z "${LINUX_INSTALL_ONLY}" ]; then
 		info "Enable kernel early printing ..."
 		/usr/src/linux/scripts/config --file ".config" --enable EARLY_PRINTK
 
-		info "Copy running kernel configuration and apply default for new settings ..."
+		info "Apply default values for new settings ..."
 		make -C /usr/src/linux O="${LINUX_BUILD_DIR}" olddefconfig
 	fi
 
@@ -305,14 +301,14 @@ if [ -z "${LINUX_INSTALL_ONLY}" ]; then
 	# HINT: Instead of installing the kernel via a distribution package, you can
 	#       build and install the kernel and the corresponging modules directly:
 	#
-	#       KERNEL_BUILD_DIR="build"
-	#       KERNEL_VERSION_SUFFIX="awesome-kernel"
-	#       make -j "$(nproc)" LOCALVERSION=-"${KERNEL_VERSION_SUFFIX}" O="${LINUX_BUILD_DIR}"
+	#       make -j "$(nproc)" LOCALVERSION=-"${LINUX_VERSION_SUFFIX}" O="${LINUX_BUILD_DIR}"
 	# FIXME: Fix build with LLVM=1
 	info "Building the new linux kernel ..."
 	command time -f "\t\n\n Elapsed Time : %E \n\n" \
 		make -C /usr/src/linux -j"$(nproc)" V=1 O="${LINUX_BUILD_DIR}" \
 		LOCALVERSION=-"${LINUX_VERSION_SUFFIX}" INSTALL_MOD_STRIP=1 binrpm-pkg
+
+	notify "Kernel build finished"
 fi
 
 if [ -z "${LINUX_BUILD_ONLY}" ]; then

@@ -225,11 +225,7 @@ if [ -z "${LINUX_INSTALL_ONLY}" ]; then
 	#       kernel sources cannot cope with that and fails.
 
 	info "Create a symlink to the kernel sources ..."
-	if [ -e "/usr/src/linux" ]; then
-		sudo rm /usr/src/linux
-	fi
-
-	sudo ln -s "${LINUX_SOURCE_DIR}" /usr/src/linux
+	sudo ln -sfn "${LINUX_SOURCE_DIR}" /usr/src/linux
 
 	info "Creating build directory ..."
 	if ! [ -d "${LINUX_BUILD_DIR}" ]; then

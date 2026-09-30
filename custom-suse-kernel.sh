@@ -215,14 +215,12 @@ if [ -z "${LINUX_INSTALL_ONLY}" ]; then
 	fi
 
 	# HINT: Older versions of depmod require the version string to start with three
-	#       digits, this would include a symlink to fix this. However, OpenSuse uses
-	#       a pretty new kernel.
-	info "Disable the depmod hack ..."
-	sudo sed -i '/^depmod_hack_needed/ s/true/false/' "${LINUX_SOURCE_DIR}/scripts/depmod.sh"
-
-	# HINT: With the usrmerge patches, depmod now accesses $base/usr/lib/modules
-	#       instead of $base/lib/modules. Unfortunately, scripts/depmod.sh in the
-	#       kernel sources cannot cope with that and fails.
+	#       digits, this would include a symlink to fix this. Newer kernels
+    #       no longer contain this hack, so only patch it if it is present.
+	if [ -f "${LINUX_SOURCE_DIR}/scripts/depmod.sh" ] && grep -q '^depmod_hack_needed' "${LINUX_SOURCE_DIR}/scripts/depmod.sh"; then
+		info "Disable the depmod hack ..."
+		sudo sed -i '/^depmod_hack_needed/ s/true/false/' "${LINUX_SOURCE_DIR}/scripts/depmod.sh"
+	fi
 
 	info "Create a symlink to the kernel sources ..."
 	sudo ln -sfn "${LINUX_SOURCE_DIR}" /usr/src/linux

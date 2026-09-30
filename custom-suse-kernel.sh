@@ -316,7 +316,22 @@ if [ -z "${LINUX_INSTALL_ONLY}" ]; then
 fi
 
 if [ -z "${LINUX_BUILD_ONLY}" ]; then
-	KERNEL_RPM="$(find "${LINUX_RPM_DIR}" -name "kernel-$(printf "%s" "${LINUX_VERSION}" | tr '-' '_')_1_default_${LINUX_VERSION_SUFFIX}-1.${LINUX_ARCH}.rpm" -print | head -n1)"
+	# The exact kernel release (including CONFIG_LOCALVERSION like "-default"
+	# and our LOCALVERSION suffix) is written by kbuild during the build.
+	KERNEL_RELEASE_FILE="${LINUX_BUILD_DIR}/include/config/kernel.release"
+	if ! [ -f "${KERNEL_RELEASE_FILE}" ]; then
+		error "No kernel build found in ${LINUX_BUILD_DIR}."
+		exit 1
+	fi
+	KERNEL_RELEASE="$(cat "${KERNEL_RELEASE_FILE}")"
+
+	# The rpm version is the kernel release with "-" replaced by "_", the rpm
+	# release is the build counter. Pick the newest build.
+	KERNEL_RPM="$(find "${LINUX_RPM_DIR}" -name "kernel-$(printf "%s" "${KERNEL_RELEASE}" | tr '-' '_')-*.${LINUX_ARCH}.rpm" -print 2>/dev/null | sort -V | tail -n1)"
+	if [ -z "${KERNEL_RPM}" ]; then
+		error "No kernel rpm for ${KERNEL_RELEASE} found in ${LINUX_RPM_DIR}."
+		exit 1
+	fi
 
 	# HINT: You can then install the new kernel and kernel modules using:
 	#

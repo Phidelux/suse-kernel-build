@@ -288,13 +288,13 @@ if [ -z "${LINUX_INSTALL_ONLY}" ]; then
 	#       scripts/diffconfig .config{.old,}
 	info "View configuration changes with /usr/src/linux/scripts/diffconfig .config{.old,}"
 
-	if yesno "Do you like to remove old kernel rpms from ${HOME}/rpmbuild/RPMS/${LINUX_ARCH}/ (default no) ? "; then
+	if [ -d "${LINUX_RPM_DIR}" ] && yesno "Do you like to remove old kernel rpms from ${LINUX_RPM_DIR} (default no) ? "; then
 	    info "Removing old kernel rpms from ${LINUX_RPM_DIR} ..."
 	    find "${LINUX_RPM_DIR}" -name "kernel-*.rpm" -exec rm {} \;
 	fi
 
 	info "Removing old kernel buildroots from ${LINUX_RPM_BUILDROOT} ..."
-	rm -rf "${LINUX_RPM_BUILDROOT}/*"
+	rm -rf "${LINUX_RPM_BUILDROOT:?}"/*
 
 	notify "Kernel build started"
 

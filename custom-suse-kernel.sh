@@ -9,7 +9,7 @@ LINUX_PACKAGE_SERVER="${LINUX_MIRROR}/snapshot/"
 LINUX_DEFAULT_CONFIG="/boot/config-$(uname -r)"
 LINUX_LAST_CONFIG="${LINUX_DEFAULT_CONFIG}"
 LINUX_VERSION_SUFFIX="${USER}"
-LINUX_BUILD_DEPENDENCIES="git ncurses-devel bc openssl libopenssl-devel dwarves rpm-build libelf-devel flex bison"
+LINUX_BUILD_DEPENDENCIES="git gcc make perl wget tar time zstd dracut ncurses-devel bc openssl libopenssl-devel dwarves rpm-build libelf-devel flex bison"
 LINUX_BUILD_DIR="$(pwd)/build"
 LINUX_SOURCE_DIR="/usr/src/linux-${LINUX_VERSION}"
 LINUX_RPMBUILD_DIR="${LINUX_BUILD_DIR}/rpmbuild/"
@@ -179,9 +179,9 @@ fi
 info "Checking build dependencies ..."
 for pkg in ${LINUX_BUILD_DEPENDENCIES}; do
 	info "Checking if ${pkg} is installed ..."
-	if ! rpm -q "${pkg}" >/dev/null; then
+	if ! rpm -q --whatprovides "${pkg}" >/dev/null 2>&1; then
 		error "${pkg} is not installed."
-		exit 0
+		exit 1
 	fi
 done
 

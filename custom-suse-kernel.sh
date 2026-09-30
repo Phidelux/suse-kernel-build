@@ -237,27 +237,48 @@ if [ -z "${LINUX_INSTALL_ONLY}" ]; then
 	if [ -z "${LINUX_NO_RECONFIGURE}" ]; then
 		# HINT: You can also copy the running kernel configuration from /boot:
 		#       cp /boot/config-`uname -r`* .config
-		info "Copy ${LINUX_LAST_CONFIG} to build directory ..."
-		cp "${LINUX_LAST_CONFIG}" ".config"
+		if [ -f "${LINUX_LAST_CONFIG}" ]; then
+			info "Copy ${LINUX_LAST_CONFIG} to build directory ..."
+			cp "${LINUX_LAST_CONFIG}" ".config"
+		elif [ -z "${LINUX_CUSTOM_CONFIG}" ] && [ -r /proc/config.gz ]; then
+			info "Copy /proc/config.gz to build directory ..."
+			zcat /proc/config.gz > ".config"
+		else
+			error "No kernel configuration found (tried ${LINUX_LAST_CONFIG} and /proc/config.gz)."
+			exit 1
+		fi
 
-		info "Stripping unnecessary kernel configurations ..."
-		/usr/src/linux/scripts/config --file ".config" --disable MODULE_SIG_KEY
-		/usr/src/linux/scripts/config --file ".config" --disable SUSE_KERNEL_RELEASED
+		info "Stripping distribution specific kernel configurations ..."
+		/usr/src/linux/scripts/config --file ".config" \
+			--set-str MODULE_SIG_KEY "certs/signing_key.pem" \
+			--set-str SYSTEM_TRUSTED_KEYS "" \
+			--set-str SYSTEM_REVOCATION_KEYS "" \
+			--disable SUSE_KERNEL_RELEASED
 
+		# HINT: Since Linux 5.18 DEBUG_INFO can no longer be switched directly,
+		#       it is selected through the "Debug information" choice.
 		if [ -n "${LINUX_DEBUG_KERNEL}" ]; then
-			info "Ensure debugging is disabled ..."
-			/usr/src/linux/scripts/config --file ".config" --enable DEBUG_KERNEL
-			/usr/src/linux/scripts/config --file ".config" --enable DEBUG_INFO
-			/usr/src/linux/scripts/config --file ".config" --enable EXPERT
+			info "Ensure debugging is enabled ..."
+			/usr/src/linux/scripts/config --file ".config" \
+				--enable EXPERT \
+				--enable DEBUG_KERNEL \
+				--disable DEBUG_INFO_NONE \
+				--enable DEBUG_INFO_DWARF_TOOLCHAIN_DEFAULT
 		else
 			info "Ensure debugging is disabled ..."
-			/usr/src/linux/scripts/config --file ".config" --disable DEBUG_KERNEL
-			/usr/src/linux/scripts/config --file ".config" --disable DEBUG_INFO
-			/usr/src/linux/scripts/config --file ".config" --disable EXPERT
+			/usr/src/linux/scripts/config --file ".config" \
+				--disable EXPERT \
+				--disable DEBUG_KERNEL \
+				--disable DEBUG_INFO \
+				--disable DEBUG_INFO_DWARF_TOOLCHAIN_DEFAULT \
+				--disable DEBUG_INFO_DWARF4 \
+				--disable DEBUG_INFO_DWARF5 \
+				--disable DEBUG_INFO_BTF \
+				--enable DEBUG_INFO_NONE
 		fi
 
 		info "Enable kernel early printing ..."
-		/usr/src/linux/scripts/config --file ".config" --enable CONFIG_EARLY_PRINTK
+		/usr/src/linux/scripts/config --file ".config" --enable EARLY_PRINTK
 
 		info "Copy running kernel configuration and apply default for new settings ..."
 		make -C /usr/src/linux O="${LINUX_BUILD_DIR}" olddefconfig
@@ -265,7 +286,7 @@ if [ -z "${LINUX_INSTALL_ONLY}" ]; then
 
 	# HINT: In order to see changes applied by the above call, you can use
 	#       scripts/diffconfig .config{.old,}
-	info "View configuration changes with scripts/diffconfig .config{.old,}"
+	info "View configuration changes with /usr/src/linux/scripts/diffconfig .config{.old,}"
 
 	if yesno "Do you like to remove old kernel rpms from ${HOME}/rpmbuild/RPMS/${LINUX_ARCH}/ (default no) ? "; then
 	    info "Removing old kernel rpms from ${LINUX_RPM_DIR} ..."

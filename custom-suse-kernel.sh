@@ -58,7 +58,7 @@ info() {
 }
 
 notify() {
-	notify-send --expire-time=2000 --urgency=critical "$*"
+	notify-send --expire-time=2000 --urgency=critical "$*" >/dev/null 2>&1 || true
 }
 
 usage() {

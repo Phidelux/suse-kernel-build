@@ -158,7 +158,7 @@ while :; do
 			LINUX_INSTALL_ONLY=1
 			;;
 		-?*)
-			usage 1 "Unkown option: $1"
+			usage 1 "Unknown option: $1"
 			;;
 		*)
 			break

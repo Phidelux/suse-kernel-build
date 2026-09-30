@@ -197,7 +197,12 @@ if [ -z "${LINUX_INSTALL_ONLY}" ]; then
 
 	if ! [ -f "${LINUX_PACKAGE}" ]; then
 		info "Downloading latest linux kernel ${LINUX_VERSION} ..."
-		wget "${LINUX_PACKAGE_SERVER}${LINUX_PACKAGE}"
+		if ! wget -O "${LINUX_PACKAGE}.part" "${LINUX_PACKAGE_SERVER}${LINUX_PACKAGE}"; then
+			rm -f "${LINUX_PACKAGE}.part"
+			error "Download of ${LINUX_PACKAGE} failed."
+			exit 1
+		fi
+		mv "${LINUX_PACKAGE}.part" "${LINUX_PACKAGE}"
 	else
 		info "Kernel tarball ${LINUX_PACKAGE} already exists - continue ..."
 	fi

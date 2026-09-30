@@ -10,9 +10,9 @@ LINUX_DEFAULT_CONFIG="/boot/config-$(uname -r)"
 LINUX_LAST_CONFIG="${LINUX_DEFAULT_CONFIG}"
 LINUX_VERSION_SUFFIX="${USER}"
 LINUX_BUILD_DEPENDENCIES="git ncurses-devel bc openssl libopenssl-devel dwarves rpm-build libelf-devel flex bison"
-LINUX_BUILD_DIR="build"
+LINUX_BUILD_DIR="$(pwd)/build"
 LINUX_SOURCE_DIR="/usr/src/linux-${LINUX_VERSION}"
-LINUX_RPMBUILD_DIR="${HOME}/rpmbuild/"
+LINUX_RPMBUILD_DIR="${LINUX_BUILD_DIR}/rpmbuild/"
 LINUX_RPM_DIR="${LINUX_RPMBUILD_DIR}/RPMS/${LINUX_ARCH}"
 LINUX_RPM_BUILDROOT="${LINUX_RPMBUILD_DIR}/BUILDROOT"
 
@@ -228,15 +228,12 @@ if [ -z "${LINUX_INSTALL_ONLY}" ]; then
 	sudo ln -sfn "${LINUX_SOURCE_DIR}" /usr/src/linux
 
 	info "Creating build directory ..."
-	if ! [ -d "${LINUX_BUILD_DIR}" ]; then
-		mkdir -p "${LINUX_BUILD_DIR}"
-	fi
-
+	mkdir -p "${LINUX_BUILD_DIR}"
 	cd "${LINUX_BUILD_DIR}"
 
 	if [ -z "${LINUX_NO_CLEAN}" ]; then
 		info "Cleanup existing build artifacts ..."
-		make -C /usr/src/linux O="$PWD" clean
+		make -C /usr/src/linux O="${LINUX_BUILD_DIR}" clean
 	fi
 
 	if [ -z "${LINUX_NO_RECONFIGURE}" ]; then
@@ -265,7 +262,7 @@ if [ -z "${LINUX_INSTALL_ONLY}" ]; then
 		/usr/src/linux/scripts/config --file ".config" --enable CONFIG_EARLY_PRINTK
 
 		info "Copy running kernel configuration and apply default for new settings ..."
-		make -C /usr/src/linux O="$PWD" olddefconfig
+		make -C /usr/src/linux O="${LINUX_BUILD_DIR}" olddefconfig
 	fi
 
 	# HINT: In order to see changes applied by the above call, you can use
@@ -287,10 +284,12 @@ if [ -z "${LINUX_INSTALL_ONLY}" ]; then
 	#
 	#       KERNEL_BUILD_DIR="build"
 	#       KERNEL_VERSION_SUFFIX="awesome-kernel"
-	#       make -j "$(nproc)" LOCALVERSION=-"$KERNEL_VERSION_SUFFIX" O="${KERNEL_BUILD_DIR}"
+	#       make -j "$(nproc)" LOCALVERSION=-"${KERNEL_VERSION_SUFFIX}" O="${LINUX_BUILD_DIR}"
 	# FIXME: Fix build with LLVM=1
 	info "Building the new linux kernel ..."
-	command time -f "\t\n\n Elapsed Time : %E \n\n" make -j"$(nproc)" V=1 O="$PWD" LOCALVERSION=-"${LINUX_VERSION_SUFFIX}" INSTALL_MOD_STRIP=1 binrpm-pkg
+	command time -f "\t\n\n Elapsed Time : %E \n\n" \
+		make -C /usr/src/linux -j"$(nproc)" V=1 O="${LINUX_BUILD_DIR}" \
+		LOCALVERSION=-"${LINUX_VERSION_SUFFIX}" INSTALL_MOD_STRIP=1 binrpm-pkg
 fi
 
 if [ -z "${LINUX_BUILD_ONLY}" ]; then

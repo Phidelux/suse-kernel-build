@@ -49,6 +49,10 @@ error() {
 	printf "Error: %s\n" "$*" >&2
 }
 
+warning() {
+	printf "Warning: %s\n" "$*" >&2
+}
+
 info() {
 	if [ -n "${VERBOSE_INFO}" ]; then
 		printf "%s\n" "$*"
@@ -318,18 +322,22 @@ if [ -z "${LINUX_BUILD_ONLY}" ]; then
 	#
 	#       sudo make modules_install
 	#       sudo make install
-	info "Installing the new linux kernel ..."
+	info "Installing ${KERNEL_RPM} ..."
 	sudo rpm -ivh "${KERNEL_RPM}"
 
 	# HINT: Previously you would have generated the initramfs with mkinitrd,
 	#       however this was deprecated in favor of dracut in 2021.
-	info "Creating a new initramfs ..."
-	sudo dracut -f --regenerate-all
+	info "Creating a new initramfs for ${KERNEL_RELEASE} ..."
+	sudo dracut -f --kver "${KERNEL_RELEASE}"
 
-	info "Backup bootloader config to /boot/grub2/grub.cfg.bak"
-	sudo cp /boot/grub2/grub.cfg /boot/grub2/grub.cfg.bak
+	if [ -f /boot/grub2/grub.cfg ]; then
+		info "Backup bootloader config to /boot/grub2/grub.cfg.bak"
+		sudo cp /boot/grub2/grub.cfg /boot/grub2/grub.cfg.bak
 
-	info "Updating bootloader information ..."
-	sudo grub2-mkconfig -o /boot/grub2/grub.cfg
+		info "Updating bootloader information ..."
+		sudo grub2-mkconfig -o /boot/grub2/grub.cfg
+	else
+		warning "/boot/grub2/grub.cfg not found - please update your bootloader manually."
+	fi
 fi
 
